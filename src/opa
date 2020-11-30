@@ -1,0 +1,94 @@
+#!/bin/env python
+import json
+import os
+import re
+import subprocess
+import click
+import keyring
+import pyperclip
+
+
+SESSION_PREFIX = os.environ.get("OPA_PREFIX", "my")
+
+
+@click.command()
+@click.argument("name")
+@click.option("-c", "copy", is_flag=True)
+def hello(name, copy):
+    session_key = get_session_key()
+    if not session_key:
+        session_key = login()
+
+    command = f'op get item "{name}"'
+    try:
+        result = execute(
+            command=command,
+            session_key=session_key,
+            stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        print(e.output.decode("utf-8"))
+        if "You are not currently signed in" in e.output.decode("utf-8"):
+            login()
+            result = subprocess.check_output(command, shell=True)
+
+        else:
+            return
+
+    try:
+        data = json.loads(result)
+    except ValueError:
+        print(repr(result))
+
+    sections = data["details"]["sections"]
+    for section in sections:
+        for field in section.get("fields", []):
+            value = field.get("v", field.get("value"))
+            name = field.get("t")
+            if value is not None:
+                if copy:
+                    if name == "password":
+                        pyperclip.copy(value)
+                else:
+                    print("{}: {}".format(name, value))
+
+
+def login():
+    key = keyring.get_password("opa", "key")
+    if key is None:
+        key = click.prompt("Please enter password, blin.")
+        keyring.set_password("opa", "key", key)
+
+    if key is None:
+        raise Exception("meh")
+
+    try:
+        output = subprocess.check_output(
+            f'echo "{key}" | op signin {SESSION_PREFIX}',
+            shell=True
+        )
+    except subprocess.CalledProcessError as e:
+        print("Failed to log in.")
+        print(f"  {e}")
+        raise Exception(1)
+
+    session_key = re.findall(
+        r'export OP_SESSION_{}="(?P<key>.*)"'.format(SESSION_PREFIX),
+        output.decode('utf-8'))[0]
+    keyring.set_password("opa", "session", session_key)
+    return session_key
+
+
+def execute(command, session_key, **kwargs):
+    return subprocess.check_output(
+        command,
+        shell=True,
+        env=dict(os.environ, OP_SESSION_my=session_key),
+        **kwargs)
+
+
+def get_session_key():
+    return keyring.get_password("opa", "session")
+
+
+if __name__ == '__main__':
+    hello()

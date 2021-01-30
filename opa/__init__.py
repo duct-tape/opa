@@ -11,32 +11,45 @@ import pyperclip
 SESSION_PREFIX = os.environ.get("OPA_PREFIX", "my")
 
 
-@click.command()
-@click.argument("name")
-@click.option("-c",
-              "copy",
-              is_flag=True,
-              help="Silently copy password value into clipboard.")
-@click.option("-l",
-              "list_items",
-              is_flag=True,
-              help="List available items")
-def opa(name, copy, list_items):
-    """1Password helper utility."""
-    if list_items:
-        get_items_list()
-    else:
-        get_item(name, copy)
+
+@click.group()
+def opa():
+    pass
 
 
-def get_items_list():
+@opa.command('items')
+@click.option("-s", "--search", "search")
+def opa_items(search):
     """List items."""
+    for item in list_items(search_term=search):
+        print(item["overview"]["title"])
+
+
+@opa.command('search')
+@click.argument("name")
+def opa_search(name):
+    """Search items by name."""
+    for item in list_items(search_term=name):
+        click.echo(item["overview"]["title"])
+
+
+@opa.command('get')
+@click.argument("name")
+@click.option('-c', '--copy', 'copy', default=False, is_flag=True)
+def opa_get(name, copy):
+    """Get item and copy into clipboard, if needed."""
+    get_item(name, copy)
+
+
+def list_items(search_term=None):
     command = "op list items"
     result = execute(command=command)
 
-    data = json.loads(result)
-    for item in data:
-        print(item["overview"]["title"])
+    items = json.loads(result)
+    for item in items:
+        if search_term is None or \
+           search_term.lower() in item["overview"]["title"].lower():
+            yield item
 
 
 def get_item(name, copy):
@@ -61,17 +74,21 @@ def get_item(name, copy):
             if copy:
                 if name == "password":
                     pyperclip.copy(value)
+                    click.echo("Password copied to clipboard")
+                    break
             else:
                 print("{}: {}".format(name, value))
 
 
-def login():
+def login(reset=False):
     """
     Perform login operation, ask for password and save session key into keyring
     """
-    key = keyring.get_password("opa", "key")
+    key = None
+    if not reset:
+        key = keyring.get_password("opa", "key")
     if key is None:
-        key = click.prompt("Please enter password, blin.")
+        key = click.prompt("Please enter Master Password", hide_input=True)
         keyring.set_password("opa", "key", key)
 
     if key is None:

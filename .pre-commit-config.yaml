@@ -1,0 +1,19 @@
+# File format: https://pre-commit.com/#plugins
+# Supported hooks: https://pre-commit.com/hooks.html
+# Running "make format" fixes most issues for you
+repos:
+  - repo: https://github.com/ambv/black
+    rev: 20.8b1
+    hooks:
+      - id: black
+        language_version: python3.8
+  - repo: https://gitlab.com/pycqa/flake8
+    rev: 3.8.4
+    hooks:
+      - id: flake8
+        exclude: migrations/
+        additional_dependencies:
+          - flake8-blind-except == 0.1.1
+          - flake8-debugger == 3.2.1
+          - flake8-colors == 0.1.6
+          - flake8-raise == 0.0.5

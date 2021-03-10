@@ -18,7 +18,7 @@ setuptools.setup(
         "License :: BSD 3",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.6',
+    python_requires=">=3.6",
     install_requires=[
         "click",
         "keyring",
@@ -27,5 +27,5 @@ setuptools.setup(
     entry_points="""
     [console_scripts]
     opa=opa:opa
-    """
+    """,
 )

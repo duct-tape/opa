@@ -35,7 +35,7 @@ def get_item(name):
     return get_values(data)
 
 
-def login(session_suffix):
+def login():
     """
     Perform login operation, ask for password and save session key into keyring
     """
@@ -80,8 +80,10 @@ def execute(command, **kwargs):
             stderr=subprocess.STDOUT,
             **kwargs)
     except subprocess.CalledProcessError as e:
-        print(e.output.decode("utf-8").strip())
-        if "You are not currently signed in" in e.output.decode("utf-8"):
+        output = e.output.decode("utf-8").strip()
+        print(output)
+        if "You are not currently signed in" in output or \
+           "session expired, sign in to create a new session"in output:
             session_key = login()
             env = dict(os.environ, OP_SESSION_my=session_key)
             result = subprocess.check_output(command, shell=True, env=env)
@@ -120,6 +122,9 @@ def print_item(data, copy=None):
     if copy:
         if data.get('password') is not None:
             pyperclip.copy(data['password'])
+            print(f"Copied {data['title']} password for {data['username']} into clipboard.")
+        elif data.get('sudo_password') is not None:
+            pyperclip.copy(data['sudo_password'])
             print(f"Copied {data['title']} password for {data['username']} into clipboard.")
         else:
             print("MEH!", repr(data))

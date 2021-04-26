@@ -35,6 +35,7 @@ def get_item(name):
     result = execute(command=f'op get item "{name}"')
 
     if result is None:
+        click.echo("Failed to fetch password, please check log above for details.")
         return None
 
     try:
@@ -89,7 +90,6 @@ def execute(command, **kwargs):
         )
     except subprocess.CalledProcessError as e:
         output = e.output.decode("utf-8").strip()
-        click.echo(output)
         if (
             "You are not currently signed in" in output
             or "session expired, sign in to create a new session" in output
@@ -97,6 +97,8 @@ def execute(command, **kwargs):
             session_key = login()
             env = dict(os.environ, OP_SESSION_my=session_key)
             result = subprocess.check_output(command, shell=True, env=env)
+        else:
+            print(output)
 
     return result
 
@@ -132,15 +134,15 @@ def print_item(data, copy=None):
         if data.get("password") is not None:
             pyperclip.copy(data["password"])
             click.echo(
-                f"Copied {data['title']} password for {data['username']} into clipboard."
+                f"Copied {data['title']} password for {_get_username(data)} into clipboard."
             )
         elif data.get("sudo_password") is not None:
             pyperclip.copy(data["sudo_password"])
             click.echo(
-                f"Copied {data['title']} password for {data['username']} into clipboard."
+                f"Copied {data['title']} password for {_get_username(data)} into clipboard."
             )
         else:
-            click.echo("MEH!", repr(data))
+            click.echo("MEH! {}".format(repr(data)))
     else:
         for key, value in data.items():
             click.echo(f"{key}: {value}")
@@ -178,3 +180,13 @@ def ask_for_password():
         )
         return ask_for_password()
     return password
+
+
+def _get_username(data):
+    """Return Username for given entry."""
+    if "username" in data:
+        return data["username"]
+    elif "title" in data:
+        return data["title"]
+    else:
+        return data["user[login]"]

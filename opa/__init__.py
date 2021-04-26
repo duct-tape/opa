@@ -29,7 +29,7 @@ def search(name):
     for item in get_list(option="items"):
         title = item["overview"]["title"]
         if name.lower() in title.lower():
-            click.echo(title)
+            click.echo(f"{title} ({item['uuid']})")
 
 
 @opa.command()
@@ -53,9 +53,10 @@ def vaults():
 
 @opa.command()
 @click.argument("name")
-def insert(name):
+@click.argument("username")
+def insert(name, username):
     password = ask_for_password()
-    encoded_data = prepare_create_payload(username=name, password=password)
+    encoded_data = prepare_create_payload(username=username, password=password)
     command = f'op create item login {encoded_data} --title="{name}"'
     result = json.loads(execute(command=command))
 
@@ -66,6 +67,7 @@ def insert(name):
 
 @opa.command()
 @click.argument("name")
+@click.argument("username")
 @click.option(
     "-c", "--copy", is_flag=True, help="Silently copy password value into clipboard."
 )
@@ -79,8 +81,8 @@ def insert(name):
     ),
     default="letters,digits,symbols,32",
 )
-def gen(name, copy, recipe):
-    encoded_data = prepare_create_payload(username=name)
+def gen(name, username, copy, recipe):
+    encoded_data = prepare_create_payload(username=username)
     command = f'op create item login {encoded_data} --title="{name}" --generate-password={recipe}'
     result = json.loads(execute(command=command))
 

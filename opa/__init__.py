@@ -16,6 +16,19 @@ SESSION_PREFIX = os.environ.get("OPA_PREFIX", "my")
 def opa():
     pass
 
+@opa.command("init")
+@click.argument("email", required=True)
+@click.argument("secret", required=True)
+@click.option("-a", "--address", "address", default="https://my.1password.com")
+def opa_init(email, secret, address):
+    try:
+        output = subprocess.check_output(
+            f'op signin {address} {email} {secret} --account={SESSION_PREFIX}',
+            shell=True
+        )
+    except subprocess.CalledProcessError as e:
+        print(e)
+
 
 @opa.command('items')
 @click.option("-s", "--search", "search")

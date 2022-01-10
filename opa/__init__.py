@@ -28,6 +28,8 @@ def opa_init(email, secret, address):
         )
     except subprocess.CalledProcessError as e:
         print(e)
+    else:
+        click.echo(output)
 
 
 @opa.command('items')
@@ -40,10 +42,33 @@ def opa_items(search):
 
 @opa.command('search')
 @click.argument("name")
-def opa_search(name):
+@click.option('-c', '--copy', 'copy', default=False, is_flag=True)
+def opa_search(name, copy):
     """Search items by name."""
-    for item in list_items(search_term=name):
-        click.echo(item["overview"]["title"])
+    cache = {}
+    item_id = None
+    for item_id, item in enumerate(list_items(search_term=name)):
+        cache[item_id + 1] = item["uuid"]
+        click.echo("{}: {}".format(item_id + 1, item["overview"]["title"]))
+
+    if item_id is None:
+        return
+
+    if item_id == 0:
+        key = 1
+    else:
+        key = click.prompt(
+            "Which Items would you like to {}? [1-{}]".format(
+                "copy" if copy else "see",
+                item_id + 1
+            )
+        )
+    try:
+        item_uuid = cache[int(key)]
+    except (KeyError, ValueError):
+        click.echo("Incorrect item provided.", err=True)
+    else:
+        get_item(item_uuid, copy)
 
 
 @opa.command('get')
@@ -57,6 +82,9 @@ def opa_get(name, copy):
 def list_items(search_term=None):
     command = "op list items"
     result = execute(command=command)
+
+    if result is None:
+        return []
 
     items = json.loads(result)
     for item in items:
@@ -80,6 +108,11 @@ def get_item(name, copy):
         print(repr(result))
         return
 
+    display(data, copy)
+
+
+def display(data, copy):
+    """Display Item information."""
     for field in get_fields(data):
         value = field.get("v", field.get("value"))
         name = field.get("t", field.get("name"))
